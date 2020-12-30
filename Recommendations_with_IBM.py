@@ -751,6 +751,7 @@ make_content_recs(search_string).head()
 
 # Load the matrix here
 user_item_matrix = pd.read_pickle('user_item_matrix.p')
+#user_item_matrix.drop_duplicates(inplace=True)
 
 
 # In[39]:
@@ -889,67 +890,48 @@ t.sol_4_test(sol_4_dict)
 # 
 # Use the cells below to explore how well SVD works towards making predictions for recommendations on the test data.  
 
-# In[49]:
-
-
-user_set_train=set(lst.listcountel(user_item_train.index.tolist()).keys())
-user_set_test=set(lst.listcountel(user_item_test.index.tolist()).keys())
-user_list_comm=list(user_set_test.intersection(user_set_train))
-
-user_item_train_comm=user_item_train.loc[user_list_comm,:].drop_duplicates()
-print(user_item_train_comm.shape)
-
-user_item_test_comm=user_item_test.loc[user_list_comm,:].drop_duplicates()
-print(user_item_test_comm.shape)
-
-
-# In[46]:
+# In[45]:
 
 
 # fit SVD on the user_item_train matrix
-u_train, s_train, vt_train =  np.linalg.svd(user_item_train_comm, full_matrices=True, 
-                            compute_uv=True)# fit svd similar to above then use the cells below
+u_train, s_train, vt_train =  np.linalg.svd(user_item_train
+                                            , full_matrices=True)# fit svd similar to above then use the cells below
+u_train.shape, s_train.shape, vt_train.shape
 
 
-# In[47]:
+# In[56]:
 
 
 # Use these cells to see how well you can use the training 
 # decomposition to predict on test data
-num_latent_feats = np.arange(10,700+10,20)
+num_latent_feats = np.arange(1,714)
 sum_errs = []
 
 for k in num_latent_feats:
-    # restructure with k latent features
-    s_new, u_new, vt_new = np.diag(s_train[:k]), u_train[:, :k], vt_train[:k, :]
-    
-    # take dot product
-    user_item_est = np.around(np.dot(np.dot(u_new, s_new), vt_new))
-    print(user_item_est.shape)
-    # compute error for each prediction to actual value
-    diffs = np.subtract(user_item_test_comm, user_item_est)
-    
-    # total errors and keep track of them
-    err = np.sum(np.sum(np.abs(diffs)))
-    sum_errs.append(err)
-    
-    
-plt.plot(num_latent_feats, 1 - np.array(sum_errs)/df.shape[0]);
+    try:
+        # restructure with k latent features
+        s_new, u_new, vt_new = np.diag(s_train[:k]), u_train[:, :k], vt_train[:k, :]
+        # take dot product
+        user_item_est = np.around(np.dot(np.dot(u_new, s_new), vt_new))
+        user_item_est=pd.DataFrame(user_item_est,index=user_item_train.index,columns=user_item_train.columns)
+        # extract rows from "est." corresponding to users in user_item_test
+        user_item_est=user_item_est.loc[user_item_test.index,:]
+        
+        # compute error for each prediction to actual value
+        diffs = np.subtract(user_item_test, user_item_est)
+
+        # total errors and keep track of them
+        err =np.sum(np.sum(np.abs(diffs)))
+        sum_errs.append(err)
+    except Exception as e:
+        print(k)
+        print (e)
+        break
+
+plt.plot(num_latent_feats, 1-sum_errs/np.nanmax(sum_errs));
 plt.xlabel('Number of Latent Features');
 plt.ylabel('Accuracy');
 plt.title('Accuracy vs. Number of Latent Features');
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
 
 
 # `6.` Use the cell below to comment on the results you found in the previous question. Given the circumstances of your results, discuss what you might do to determine if the recommendations you make with any of the above recommendation systems are an improvement to how users currently find articles? 
@@ -976,7 +958,7 @@ plt.title('Accuracy vs. Number of Latent Features');
 # 
 # > Once you've done this, you can submit your project by clicking on the "Submit Project" button in the lower right here. This will create and submit a zip file with this .ipynb doc and the .html or .pdf version you created. Congratulations! 
 
-# In[ ]:
+# In[48]:
 
 
 #from subprocess import call
